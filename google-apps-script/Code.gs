@@ -71,6 +71,9 @@ function doPost(e) {
     case 'admin_update_settings':
       result = adminUpdateSettings(params);
       break;
+    case 'admin_upload_image':
+      result = adminUploadImage(params);
+      break;
     default:
       result = { error: 'Unknown action' };
   }
@@ -348,6 +351,34 @@ function adminUpdateSettings(params) {
   }
 
   return { ok: true };
+}
+
+function adminUploadImage(params) {
+  var base64 = params.imageData;
+  var fileName = params.fileName || 'image.jpg';
+  var mimeType = params.mimeType || 'image/jpeg';
+
+  if (!base64) return { error: 'No image data' };
+
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64), mimeType, fileName);
+  var folder = DriveApp.getFolderById(getOrCreateFolderId());
+  var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  var fileId = file.getId();
+  var url = 'https://drive.google.com/uc?id=' + fileId + '&export=view';
+
+  return { ok: true, url: url };
+}
+
+function getOrCreateFolderId() {
+  var props = PropertiesService.getScriptProperties();
+  var folderId = props.getProperty('smartkiosk_images_folder');
+  if (folderId) return folderId;
+
+  var folder = DriveApp.createFolder('SmartKiosk_Images');
+  props.setProperty('smartkiosk_images_folder', folder.getId());
+  return folder.getId();
 }
 
 // ===== SETUP =====

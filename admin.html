@@ -75,6 +75,9 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
 @keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 .empty{text-align:center;padding:40px;color:var(--text-light)}
+.upload-box{display:flex;align-items:center;justify-content:center;width:88px;height:88px;border:2px dashed var(--border);border-radius:8px;cursor:pointer;transition:border .2s;overflow:hidden}
+.upload-box:hover{border-color:var(--accent)}
+.upload-box input{display:none}
 .loading{text-align:center;padding:40px}
 .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -176,9 +179,32 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="form-group"><label>اسم المنتج (إنجليزي) *</label><input id="p_title_en" required></div>
       <div class="form-group"><label>السعر *</label><input type="number" id="p_price" required></div>
       <div class="form-group"><label>السعر القديم</label><input type="number" id="p_old_price"></div>
-      <div class="form-group"><label>رابط الصورة 1</label><input id="p_image1" placeholder="https://..."></div>
-      <div class="form-group"><label>رابط الصورة 2</label><input id="p_image2" placeholder="https://..."></div>
-      <div class="form-group"><label>رابط الصورة 3</label><input id="p_image3" placeholder="https://..."></div>
+      <div class="form-group full">
+        <label>صور المنتج (ارفع من الكمبيوتر)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label class="upload-box" id="upload-box-1">
+            <input type="file" accept="image/*" onchange="previewImage(this,1)" style="display:none">
+            <img id="upload-preview-1" style="display:none;width:80px;height:80px;object-fit:cover;border-radius:8px">
+            <span id="upload-label-1" style="color:#999;font-size:.8rem">+ صورة 1</span>
+          </label>
+          <label class="upload-box" id="upload-box-2">
+            <input type="file" accept="image/*" onchange="previewImage(this,2)" style="display:none">
+            <img id="upload-preview-2" style="display:none;width:80px;height:80px;object-fit:cover;border-radius:8px">
+            <span id="upload-label-2" style="color:#999;font-size:.8rem">+ صورة 2</span>
+          </label>
+          <label class="upload-box" id="upload-box-3">
+            <input type="file" accept="image/*" onchange="previewImage(this,3)" style="display:none">
+            <img id="upload-preview-3" style="display:none;width:80px;height:80px;object-fit:cover;border-radius:8px">
+            <span id="upload-label-3" style="color:#999;font-size:.8rem">+ صورة 3</span>
+          </label>
+        </div>
+        <small style="color:var(--text-light);margin-top:4px;display:block">أو أدخل رابط الصورة يدوياً:</small>
+        <div class="form-row" style="margin-top:4px">
+          <div class="form-group"><input id="p_image1" placeholder="رابط الصورة 1"></div>
+          <div class="form-group"><input id="p_image2" placeholder="رابط الصورة 2"></div>
+          <div class="form-group"><input id="p_image3" placeholder="رابط الصورة 3"></div>
+        </div>
+      </div>
       <div class="form-group"><label>التصنيف (عربي)</label><input id="p_category_ar"></div>
       <div class="form-group"><label>التصنيف (إنجليزي)</label><input id="p_category_en"></div>
       <div class="form-group"><label>الوصف (عربي)</label><textarea id="p_desc_ar" rows="2"></textarea></div>
@@ -326,6 +352,15 @@ function openProductModal(row) {
   document.getElementById('productModal').classList.add('open');
   document.getElementById('productModalTitle').textContent = row ? 'تعديل منتج' : 'إضافة منتج جديد';
   document.getElementById('p_row').value = row || '';
+  uploadedImages = { 1: null, 2: null, 3: null };
+  [1, 2, 3].forEach(function(num) {
+    var preview = document.getElementById('upload-preview-' + num);
+    var label = document.getElementById('upload-label-' + num);
+    if (preview) { preview.style.display = 'none'; preview.src = ''; }
+    if (label) label.style.display = 'block';
+    var fileInput = document.querySelector('#upload-box-' + num + ' input[type="file"]');
+    if (fileInput) fileInput.value = '';
+  });
   if (!row) {
     ['p_title_ar','p_title_en','p_price','p_old_price','p_image1','p_image2','p_image3','p_category_ar','p_category_en','p_desc_ar','p_desc_en'].forEach(function(id) {
       document.getElementById(id).value = '';
@@ -354,51 +389,92 @@ function editProduct(row) {
   document.getElementById('p_desc_en').value = p.desc_en || '';
   document.getElementById('p_stock').value = p.stock || 0;
   document.getElementById('p_active').value = p.active ? 'true' : 'false';
+  [1,2,3].forEach(function(num) {
+    var url = p['image' + num];
+    if (url) {
+      var preview = document.getElementById('upload-preview-' + num);
+      var label = document.getElementById('upload-label-' + num);
+      preview.src = url;
+      preview.style.display = 'block';
+      label.style.display = 'none';
+    }
+  });
 }
 
 function saveProduct(e) {
   e.preventDefault();
   var row = document.getElementById('p_row').value;
-  var data = {
-    title_ar: document.getElementById('p_title_ar').value,
-    title_en: document.getElementById('p_title_en').value,
-    price: Number(document.getElementById('p_price').value),
-    old_price: Number(document.getElementById('p_old_price').value) || 0,
-    currency: 'DZD',
-    image1: document.getElementById('p_image1').value,
-    image2: document.getElementById('p_image2').value,
-    image3: document.getElementById('p_image3').value,
-    category_ar: document.getElementById('p_category_ar').value,
-    category_en: document.getElementById('p_category_en').value,
-    desc_ar: document.getElementById('p_desc_ar').value,
-    desc_en: document.getElementById('p_desc_en').value,
-    stock: Number(document.getElementById('p_stock').value) || 0,
-    active: document.getElementById('p_active').value === 'true'
-  };
+  var submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'جاري الحفظ...';
 
-  if (row) {
-    data._row = row;
+  function doSave(urls) {
+    var data = {
+      title_ar: document.getElementById('p_title_ar').value,
+      title_en: document.getElementById('p_title_en').value,
+      price: Number(document.getElementById('p_price').value),
+      old_price: Number(document.getElementById('p_old_price').value) || 0,
+      currency: 'DZD',
+      image1: urls[1] || document.getElementById('p_image1').value,
+      image2: urls[2] || document.getElementById('p_image2').value,
+      image3: urls[3] || document.getElementById('p_image3').value,
+      category_ar: document.getElementById('p_category_ar').value,
+      category_en: document.getElementById('p_category_en').value,
+      desc_ar: document.getElementById('p_desc_ar').value,
+      desc_en: document.getElementById('p_desc_en').value,
+      stock: Number(document.getElementById('p_stock').value) || 0,
+      active: document.getElementById('p_active').value === 'true'
+    };
+
+    var endpoint = row ? 'admin_edit_product' : 'admin_add_product';
+    if (row) data._row = row;
+    else data.id = 'PROD-' + Date.now();
+
     fetch(API_URL, {
       method: 'POST',
       mode: 'no-cors',
-      body: JSON.stringify(Object.assign({ action: 'admin_edit_product' }, data))
+      body: JSON.stringify(Object.assign({ action: endpoint }, data))
     }).then(function() {
       closeProductModal();
-      toast('تم التعديل بنجاح');
-      setTimeout(loadProducts, 2000);
-    });
-  } else {
-    data.id = 'PROD-' + Date.now();
-    fetch(API_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: JSON.stringify(Object.assign({ action: 'admin_add_product' }, data))
-    }).then(function() {
-      closeProductModal();
-      toast('تمت الإضافة بنجاح');
+      toast(row ? 'تم التعديل بنجاح' : 'تمت الإضافة بنجاح');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'حفظ';
       setTimeout(loadProducts, 2000);
     });
   }
+
+  var filesToUpload = [];
+  [1, 2, 3].forEach(function(num) {
+    var input = document.querySelector('#upload-box-' + num + ' input[type="file"]');
+    if (input && input.files[0]) filesToUpload.push({ num: num, file: input.files[0] });
+  });
+
+  if (filesToUpload.length === 0) {
+    doSave({});
+    return;
+  }
+
+  var urls = {};
+  var done = 0;
+  filesToUpload.forEach(function(f) {
+    toast('جاري رفع الصورة ' + f.num + '...');
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var base64 = ev.target.result.split(',')[1];
+      fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'admin_upload_image', imageData: base64, fileName: f.file.name, mimeType: f.file.type })
+      }).then(function(r) { return r.text(); }).then(function(text) {
+        try { var d = JSON.parse(text); urls[f.num] = d.url || ''; } catch(ex) {}
+        done++;
+        if (done === filesToUpload.length) doSave(urls);
+      }).catch(function() {
+        done++;
+        if (done === filesToUpload.length) doSave(urls);
+      });
+    };
+    reader.readAsDataURL(f.file);
+  });
 }
 
 function deleteProduct(row, name) {
